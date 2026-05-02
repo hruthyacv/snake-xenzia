@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Snake Xenzia — Enhanced Edition</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  :root {
+    --bg:       #0f0f1a;
+    --bg2:      #161625;
+    --bg3:      #1e1e35;
+    --border:   #2a2a4a;
+    --accent:   #39ff14;
+    --accent2:  #00e5ff;
+    --red:      #ff4444;
+    --gold:     #ffd700;
+    --purple:   #c850ff;
+    --orange:   #ff8c00;
+    --text:     #e0e0f0;
+    --textdim:  #7070a0;
+    --cell:     22px;
+    --cols:     28;
+    --rows:     22;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Courier New', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    overflow-x: hidden;
+  }
+
+  /* ── SCREENS ── */
+  .screen { display:none; width:100%; max-width:700px; padding:12px; }
+  .screen.active { display:flex; flex-direction:column; align-items:center; }
+
+  /* ── MENU ── */
+  #menu-screen { justify-content:center; min-height:100vh; }
+
+  .logo {
+    text-align:center;
+    margin-bottom:8px;
+    margin-top:20px;
+  }
+  .logo-title {
+    font-size: clamp(28px,7vw,52px);
+    font-weight:900;
+    letter-spacing:4px;
+    color: var(--accent);
+    text-shadow: 0 0 20px var(--accent), 0 0 40px var(--accent);
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+  .logo-sub {
+    font-size:13px;
+    color:var(--textdim);
+    letter-spacing:6px;
+    margin-top:4px;
+  }
+  @keyframes pulse-glow {
+    0%,100%{text-shadow:0 0 20px var(--accent),0 0 40px var(--accent);}
+    50%{text-shadow:0 0 30px var(--accent),0 0 60px var(--accent),0 0 80px var(--accent);}
+  }
+
+  .menu-mode-badge {
+    background:var(--bg3);
+    border:1px solid var(--border);
+    border-radius:20px;
+    padding:4px 16px;
+    font-size:12px;
+    color:var(--accent);
+    margin-bottom:20px;
+    letter-spacing:2px;
+  }
+
+  .btn-list { width:100%; max-width:300px; display:flex; flex-direction:column; gap:10px; margin-bottom:20px; }
+
+  .btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 20px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 15px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align:center;
+    position:relative;
+    overflow:hidden;
+  }
+  .btn:hover, .btn.sel {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+    box-shadow: 0 0 15px rgba(57,255,20,0.4);
+    transform: translateY(-1px);
+  }
+  .btn-red:hover   { background:var(--red);    color:#fff; border-color:var(--red);    box-shadow:0 0 15px rgba(255,68,68,0.4); }
+  .btn-gold:hover  { background:var(--gold);   color:#000; border-color:var(--gold);   box-shadow:0 0 15px rgba(255,215,0,0.4); }
+  .btn-purple:hover{ background:var(--purple); color:#fff; border-color:var(--purple); box-shadow:0 0 15px rgba(200,80,255,0.4); }
+  .btn-cyan:hover  { background:var(--accent2);color:#000; border-color:var(--accent2);box-shadow:0 0 15px rgba(0,229,255,0.4); }
+
+  /* ── MODE SELECT ── */
+  .mode-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%; max-width:480px; margin-bottom:16px; }
+  .mode-card {
+    background:var(--bg3);
+    border:2px solid var(--border);
+    border-radius:12px;
+    padding:14px;
+    cursor:pointer;
+    transition:all 0.15s;
+  }
+  .mode-card:hover, .mode-card.sel {
+    border-color:var(--accent);
+    box-shadow:0 0 14px rgba(57,255,20,0.3);
+    transform:translateY(-2px);
+  }
+  .mode-card h3 { font-size:14px; color:var(--accent); margin-bottom:4px; letter-spacing:1px; }
+  .mode-card p  { font-size:11px; color:var(--textdim); line-height:1.5; }
+
+  /* ── GAME SCREEN ── */
+  #game-screen { padding:8px; }
+
+  .game-wrap {
+    display:flex;
+    gap:10px;
+    align-items:flex-start;
+    width:100%;
+    justify-content:center;
+    flex-wrap:wrap;
+  }
+
+  #game-canvas {
+    border:2px solid var(--border);
+    border-radius:6px;
+    display:block;
+    background:var(--bg);
+    image-rendering: pixelated;
+    flex-shrink:0;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    background:var(--bg2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:14px;
+    width:160px;
+    flex-shrink:0;
+    font-size:12px;
+  }
+  .sb-title { color:var(--accent); letter-spacing:2px; font-size:11px; margin-bottom:12px; text-align:center; }
+  .sb-row { margin-bottom:10px; }
+  .sb-label { color:var(--textdim); font-size:10px; letter-spacing:1px; }
+  .sb-val   { font-size:20px; font-weight:700; color:var(--accent); }
+  .sb-val.gold  { color:var(--gold); }
+  .sb-val.red   { color:var(--red); }
+  .sb-val.cyan  { color:var(--accent2); }
+  .sb-divider { border:none; border-top:1px solid var(--border); margin:10px 0; }
+  .sb-small { font-size:11px; color:var(--textdim); line-height:1.7; }
+  .sb-combo { font-size:14px; color:var(--orange); animation:combo-pulse 0.5s ease-in-out infinite alternate; }
+  @keyframes combo-pulse { from{opacity:0.7} to{opacity:1;text-shadow:0 0 8px var(--orange);} }
+
+  .pu-active {
+    background:var(--bg3);
+    border:1px solid var(--purple);
+    border-radius:6px;
+    padding:5px 8px;
+    margin-top:6px;
+    font-size:10px;
+    color:var(--purple);
+  }
+  .pu-bar-wrap { background:var(--bg); border-radius:3px; height:4px; margin-top:3px; overflow:hidden; }
+  .pu-bar { height:4px; border-radius:3px; background:var(--purple); transition:width 0.3s; }
+
+  /* ── TOUCH CONTROLS ── */
+  .touch-controls {
+    display:none;
+    grid-template-columns: 60px 60px 60px;
+    grid-template-rows: 60px 60px 60px;
+    gap:6px;
+    margin-top:10px;
+  }
+  @media (pointer:coarse) { .touch-controls { display:grid; } }
+  .touch-btn {
+    background:var(--bg3);
+    border:2px solid var(--border);
+    border-radius:10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:22px;
+    cursor:pointer;
+    user-select:none;
+    -webkit-user-select:none;
+    transition:all 0.1s;
+    color:var(--text);
+  }
+  .touch-btn:active { background:var(--accent); color:#000; border-color:var(--accent); transform:scale(0.93); }
+  .tb-up    { grid-column:2; grid-row:1; }
+  .tb-left  { grid-column:1; grid-row:2; }
+  .tb-center{ grid-column:2; grid-row:2; font-size:14px; color:var(--textdim); }
+  .tb-right { grid-column:3; grid-row:2; }
+  .tb-down  { grid-column:2; grid-row:3; }
+
+  /* ── OVERLAYS ── */
+  .overlay {
+    display:none;
+    position:absolute;
+    top:0; left:0; right:0; bottom:0;
+    background:rgba(0,0,0,0.85);
+    border-radius:6px;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    gap:12px;
+    z-index:10;
+  }
+  .overlay.show { display:flex; }
+  .overlay h2 { font-size:28px; letter-spacing:4px; }
+  .overlay p  { font-size:13px; color:var(--textdim); text-align:center; }
+  .canvas-wrap { position:relative; display:inline-block; }
+
+  /* ── GAMEOVER SCREEN ── */
+  #gameover-screen { justify-content:center; min-height:100vh; }
+  .go-title { font-size:clamp(32px,8vw,56px); font-weight:900; color:var(--red); letter-spacing:4px; margin:20px 0 10px; text-align:center; text-shadow:0 0 20px var(--red); }
+  .go-stats { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:16px 24px; width:100%; max-width:300px; margin-bottom:16px; }
+  .stat-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border); font-size:14px; }
+  .stat-row:last-child { border:none; }
+  .stat-label { color:var(--textdim); }
+  .stat-val   { color:var(--accent); font-weight:700; }
+  .stat-val.gold { color:var(--gold); }
+  .new-best { color:var(--gold); font-size:14px; letter-spacing:2px; margin-bottom:8px; text-align:center; animation:pulse-glow 1s ease-in-out infinite; }
+
+  /* ── LEADERBOARD ── */
+  #lb-screen { justify-content:flex-start; min-height:100vh; padding-top:20px; }
+  .lb-title  { font-size:clamp(22px,6vw,36px); color:var(--gold); letter-spacing:4px; margin-bottom:16px; }
+  .lb-table  { width:100%; max-width:480px; border-collapse:collapse; margin-bottom:16px; }
+  .lb-table th { color:var(--textdim); font-size:11px; letter-spacing:2px; padding:6px 10px; border-bottom:1px solid var(--border); text-align:left; }
+  .lb-table td { padding:8px 10px; font-size:13px; border-bottom:1px solid var(--border); }
+  .lb-table tr:hover td { background:var(--bg3); }
+  .rank-1 { color:var(--gold); font-weight:700; }
+  .rank-2 { color:#c0c0c0; font-weight:700; }
+  .rank-3 { color:#cd7f32; font-weight:700; }
+  .empty-lb { color:var(--textdim); font-size:14px; margin:30px 0; text-align:center; }
+
+  /* ── NAME ENTRY ── */
+  #name-screen { justify-content:center; min-height:100vh; }
+  .name-box { background:var(--bg2); border:1px solid var(--border); border-radius:14px; padding:28px 24px; width:100%; max-width:340px; text-align:center; }
+  .name-box h2 { color:var(--accent); letter-spacing:3px; margin-bottom:8px; font-size:18px; }
+  .name-box p  { color:var(--textdim); font-size:12px; margin-bottom:16px; }
+  #name-input  {
+    width:100%; background:var(--bg3); border:2px solid var(--border); border-radius:8px;
+    padding:12px 14px; color:var(--text); font-family:inherit; font-size:16px;
+    outline:none; margin-bottom:12px; text-align:center; letter-spacing:2px;
+  }
+  #name-input:focus { border-color:var(--accent); box-shadow:0 0 10px rgba(57,255,20,0.3); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 540px) {
+    :root { --cell:18px; --cols:24; --rows:20; }
+    .sidebar { display:none; }
+    .game-wrap { flex-direction:column; align-items:center; }
+    .touch-controls { display:grid; }
+  }
+  @media (max-width: 380px) {
+    :root { --cell:16px; --cols:22; --rows:18; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ MENU ══ -->
+<div class="screen active" id="menu-screen">
+  <div class="logo">
+    <div class="logo-title">SNAKE XENZIA</div>
+    <div class="logo-sub">ENHANCED EDITION</div>
+  </div>
+  <div class="menu-mode-badge" id="menu-mode-label">MODE: CLASSIC</div>
+  <div class="btn-list">
+    <button class="btn" onclick="showNameEntry()">▶ PLAY GAME</button>
+    <button class="btn btn-cyan" onclick="showScreen('mode-screen')">⚙ SELECT MODE</button>
+    <button class="btn btn-gold" onclick="showScreen('lb-screen'); renderLB()">🏆 LEADERBOARD</button>
+    <button class="btn btn-red" onclick="if(confirm('Clear all scores?')){localStorage.removeItem('snkLB');alert('Cleared!');}">✕ CLEAR SCORES</button>
+  </div>
+  <div style="font-size:11px;color:var(--textdim);text-align:center;line-height:1.9">
+    ARROWS / WASD — Move &nbsp;|&nbsp; P — Pause<br>
+    Swipe on mobile &nbsp;|&nbsp; R — Restart
+  </div>
+</div>
+
+<!-- ══ MODE SELECT ══ -->
+<div class="screen" id="mode-screen">
+  <div style="font-size:20px;color:var(--accent);letter-spacing:3px;margin:20px 0 16px">SELECT MODE</div>
+  <div class="mode-grid">
+    <div class="mode-card sel" data-mode="classic" onclick="selectMode('classic',this)">
+      <h3>CLASSIC</h3>
+      <p>Standard snake. Eat, grow, survive. Portal teleports!</p>
+    </div>
+    <div class="mode-card" data-mode="time" onclick="selectMode('time',this)">
+      <h3>TIME ATTACK</h3>
+      <p>90 seconds. Score as much as possible before time runs out.</p>
+    </div>
+    <div class="mode-card" data-mode="survival" onclick="selectMode('survival',this)">
+      <h3>SURVIVAL</h3>
+      <p>Obstacles appear over time. Speed increases. How long can you last?</p>
+    </div>
+    <div class="mode-card" data-mode="ai" onclick="selectMode('ai',this)">
+      <h3>AI MODE</h3>
+      <p>Watch the AI snake hunt food using BFS pathfinding!</p>
+    </div>
+  </div>
+  <button class="btn" style="max-width:200px" onclick="showScreen('menu-screen')">← BACK</button>
+</div>
+
+<!-- ══ NAME ENTRY ══ -->
+<div class="screen" id="name-screen">
+  <div class="name-box">
+    <h2>YOUR NAME</h2>
+    <p>Appears on the leaderboard</p>
+    <input type="text" id="name-input" maxlength="16" placeholder="Enter name..." autocomplete="off" spellcheck="false">
+    <button class="btn" style="width:100%" onclick="startGame()">PLAY →</button>
+    <button class="btn" style="width:100%;margin-top:8px;font-size:12px" onclick="showScreen('menu-screen')">← BACK</button>
+  </div>
+</div>
+
+<!-- ══ GAME ══ -->
+<div class="screen" id="game-screen">
+  <div class="game-wrap">
+    <div class="canvas-wrap">
+      <canvas id="game-canvas"></canvas>
+      <div class="overlay" id="pause-overlay">
+        <h2 style="color:var(--accent)">PAUSED</h2>
+        <p>P / Space — Resume<br>R — Restart<br>ESC — Menu</p>
+        <button class="btn" style="margin-top:8px" onclick="togglePause()">▶ RESUME</button>
+      </div>
+    </div>
+    <div class="sidebar">
+      <div class="sb-title">SNAKE XENZIA</div>
+      <div class="sb-row">
+        <div class="sb-label">MODE</div>
+        <div class="sb-val cyan" id="sb-mode" style="font-size:13px">CLASSIC</div>
+      </div>
+      <div class="sb-row">
+        <div class="sb-label">PLAYER</div>
+        <div class="sb-val" id="sb-name" style="font-size:13px;color:var(--text)">-</div>
+      </div>
+      <hr class="sb-divider">
+      <div class="sb-row">
+        <div class="sb-label">SCORE</div>
+        <div class="sb-val" id="sb-score">0</div>
+      </div>
+      <div class="sb-row">
+        <div class="sb-label">BEST</div>
+        <div class="sb-val gold" id="sb-best">0</div>
+      </div>
+      <div id="sb-combo-wrap" style="display:none" class="sb-row">
+        <div class="sb-label">COMBO</div>
+        <div class="sb-combo" id="sb-combo">x1</div>
+      </div>
+      <hr class="sb-divider">
+      <div class="sb-row">
+        <div class="sb-label">LENGTH</div>
+        <div class="sb-val" id="sb-len" style="font-size:16px">4</div>
+      </div>
+      <div class="sb-row" id="sb-time-wrap" style="display:none">
+        <div class="sb-label">TIME</div>
+        <div class="sb-val red" id="sb-time">90</div>
+      </div>
+      <div id="sb-pu-wrap" style="display:none">
+        <div class="sb-label">POWER-UP</div>
+        <div class="pu-active" id="sb-pu-name">-</div>
+        <div class="pu-bar-wrap"><div class="pu-bar" id="sb-pu-bar" style="width:100%"></div></div>
+      </div>
+      <hr class="sb-divider">
+      <div class="sb-small">
+        ARROWS/WASD<br>P — Pause<br>R — Restart<br>ESC — Menu
+      </div>
+    </div>
+  </div>
+
+  <!-- Touch controls -->
+  <div class="touch-controls">
+    <div class="touch-btn tb-up"    ontouchstart="touchDir(0,-1)">▲</div>
+    <div class="touch-btn tb-left"  ontouchstart="touchDir(-1,0)">◀</div>
+    <div class="touch-btn tb-center" ontouchstart="togglePause()">II</div>
+    <div class="touch-btn tb-right" ontouchstart="touchDir(1,0)">▶</div>
+    <div class="touch-btn tb-down"  ontouchstart="touchDir(0,1)">▼</div>
+  </div>
+</div>
+
+<!-- ══ GAME OVER ══ -->
+<div class="screen" id="gameover-screen">
+  <div class="go-title" id="go-title">GAME OVER</div>
+  <div class="new-best" id="go-newbest" style="display:none">★ NEW HIGH SCORE! ★</div>
+  <div class="go-stats">
+    <div class="stat-row"><span class="stat-label">SCORE</span>  <span class="stat-val" id="go-score">0</span></div>
+    <div class="stat-row"><span class="stat-label">LENGTH</span> <span class="stat-val" id="go-len">0</span></div>
+    <div class="stat-row"><span class="stat-label">TIME</span>   <span class="stat-val" id="go-time">0s</span></div>
+    <div class="stat-row"><span class="stat-label">MODE</span>   <span class="stat-val" id="go-mode">-</span></div>
+    <div class="stat-row"><span class="stat-label">BEST</span>   <span class="stat-val gold" id="go-best">0</span></div>
+  </div>
+  <div class="btn-list">
+    <button class="btn" onclick="startGame()">↺ PLAY AGAIN</button>
+    <button class="btn btn-gold" onclick="showScreen('lb-screen'); renderLB()">🏆 LEADERBOARD</button>
+    <button class="btn btn-red"  onclick="showScreen('menu-screen')">⌂ MENU</button>
+  </div>
+</div>
+
+<!-- ══ LEADERBOARD ══ -->
+<div class="screen" id="lb-screen">
+  <div class="lb-title">LEADERBOARD</div>
+  <div id="lb-content"></div>
+  <button class="btn" style="max-width:200px;margin-top:8px" onclick="showScreen('menu-screen')">← BACK</button>
+</div>
+
+<script>
+'use strict';
+
+// ══════════════════════════════════════════════
+// CONSTANTS & STATE
+// ══════════════════════════════════════════════
+const COLS  = () => parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cols').trim()) || 28;
+const ROWS  = () => parseInt(getComputedStyle(document.documentElement).getPropertyValue('--rows').trim()) || 22;
+const CELL  = () => parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cell').trim()) || 22;
+
+const SPEED_NORMAL  = 145;
+const SPEED_MIN     = 55;
+const SPEED_BOOST   = 65;
+const SPEED_SLOW    = 300;
+const PU_LIFETIME   = 7000;
+const PU_EFFECT     = 6000;
+const TIME_ATTACK   = 90;
+
+let G = {}; // game state
+
+const canvas = document.getElementById('game-canvas');
+const ctx    = canvas.getContext('2d');
+
+// ══════════════════════════════════════════════
+// SCREEN MANAGEMENT
+// ══════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showNameEntry() {
+  document.getElementById('name-input').value = G.playerName || '';
+  showScreen('name-screen');
+  setTimeout(() => document.getElementById('name-input').focus(), 100);
+}
+
+// ══════════════════════════════════════════════
+// MODE SELECT
+// ══════════════════════════════════════════════
+let currentMode = 'classic';
+const MODE_LABELS = { classic:'CLASSIC', time:'TIME ATTACK', survival:'SURVIVAL', ai:'AI MODE' };
+
+function selectMode(mode, el) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('menu-mode-label').textContent = 'MODE: ' + MODE_LABELS[mode];
+}
+
+// ══════════════════════════════════════════════
+// CANVAS SETUP
+// ══════════════════════════════════════════════
+function setupCanvas() {
+  const cols = COLS(), rows = ROWS(), cell = CELL();
+  canvas.width  = cols * cell;
+  canvas.height = rows * cell;
+}
+
+// ══════════════════════════════════════════════
+// GAME INIT
+// ══════════════════════════════════════════════
+function startGame() {
+  const nameInput = document.getElementById('name-input');
+  G.playerName = (nameInput.value.trim() || 'Player').substring(0, 16);
+
+  setupCanvas();
+  const cols = COLS(), rows = ROWS();
+
+  G = {
+    ...G,
+    cols, rows,
+    mode:      currentMode,
+    running:   true,
+    paused:    false,
+    over:      false,
+    score:     0,
+    combo:     0,
+    comboTimer:0,
+    foodEaten: 0,
+    startTime: Date.now(),
+    lastMove:  Date.now(),
+    moveInterval: SPEED_NORMAL,
+    timeLeft:  TIME_ATTACK,
+    lastSec:   Date.now(),
+    // Snake
+    snake:     [],
+    dir:       {x:1,y:0},
+    nextDir:   {x:1,y:0},
+    // Food
+    food:      {x:0,y:0},
+    // Obstacles
+    obstacles: [],
+    // Portals
+    portals:   [],
+    portalsOn: (currentMode==='classic' || currentMode==='survival'),
+    // Power-up on board
+    boardPU:   null,
+    // Active effect
+    activeFX:  null,
+    // AI
+    aiSnake:   null,
+    aiDir:     {x:-1,y:0},
+    aiNextDir: {x:-1,y:0},
+    // Particles
+    particles: [],
+    // Survival
+survivalCount: 0,
+    // Animation
+    animFrame: null,
+  };
+
+  // Init player snake
+  const hx = Math.floor(cols/5), hy = Math.floor(rows/2);
+  G.snake = [];
+  for (let i=0;i<4;i++) G.snake.push({x:hx-i, y:hy});
+
+  // Init AI snake
+  if (currentMode === 'ai') {
+    const ax = Math.floor(cols*4/5), ay = Math.floor(rows/2);
+    G.aiSnake = [];
+    for (let i=0;i<4;i++) G.aiSnake.push({x:ax+i, y:ay});
+  }
+
+  // Portals
+  if (G.portalsOn) {
+    G.portals = [
+      {x:Math.floor(cols/5),   y:Math.floor(rows/2)-4},
+      {x:Math.floor(cols*4/5), y:Math.floor(rows/2)-4}
+    ];
+  }
+
+  // Obstacles for survival
+  if (currentMode === 'survival') {
+    for (let i=0;i<4;i++) spawnObstacle();
+  }
+
+  spawnFood();
+
+  // UI
+  document.getElementById('sb-mode').textContent   = MODE_LABELS[currentMode];
+  document.getElementById('sb-name').textContent   = G.playerName;
+  document.getElementById('sb-score').textContent  = '0';
+  document.getElementById('sb-best').textContent   = getBest();
+  document.getElementById('sb-len').textContent    = '4';
+  document.getElementById('sb-time-wrap').style.display = currentMode==='time' ? '' : 'none';
+  document.getElementById('sb-combo-wrap').style.display = 'none';
+  document.getElementById('sb-pu-wrap').style.display    = 'none';
+  document.getElementById('pause-overlay').classList.remove('show');
+
+  showScreen('game-screen');
+  if (G.animFrame) cancelAnimationFrame(G.animFrame);
+  gameLoop();
+}
+
+// ══════════════════════════════════════════════
+// SPAWNING
+// ══════════════════════════════════════════════
+function cellFree(x, y, includeFood=true) {
+  if (x<0||x>=G.cols||y<0||y>=G.rows) return false;
+  for (const s of G.snake) if (s.x===x&&s.y===y) return false;
+  if (G.aiSnake) for (const s of G.aiSnake) if (s.x===x&&s.y===y) return false;
+  if (includeFood && G.food.x===x && G.food.y===y) return false;
+  for (const o of G.obstacles) if (o.x===x&&o.y===y) return false;
+  if (G.portalsOn) for (const p of G.portals) if (p.x===x&&p.y===y) return false;
+  if (G.boardPU && G.boardPU.x===x && G.boardPU.y===y) return false;
+  return true;
+}
+
+function randomFree() {
+  let tries=0, x, y;
+  do { x=Math.floor(Math.random()*G.cols); y=Math.floor(Math.random()*G.rows); tries++; }
+  while (!cellFree(x,y) && tries<2000);
+  return {x,y};
+}
+
+function spawnFood() {
+  const p = randomFree(); G.food = p;
+}
+
+function spawnObstacle() {
+  if (G.obstacles.length >= 30) return;
+  const p = randomFree();
+  G.obstacles.push(p);
+}
+
+function spawnPowerUp() {
+  if (G.boardPU) return;
+  if (Math.random() > 0.12) return;
+  const types = ['speed','slow','double','shrink'];
+  const p = randomFree();
+  G.boardPU = { x:p.x, y:p.y, type:types[Math.floor(Math.random()*4)], born:Date.now() };
+}
+
+// ══════════════════════════════════════════════
+// PARTICLES
+// ══════════════════════════════════════════════
+function emitParticles(px, py, color, n=12) {
+  for (let i=0;i<n;i++) {
+    const angle = Math.random()*Math.PI*2;
+    const speed = 1+Math.random()*3;
+    G.particles.push({
+      x:px, y:py,
+      vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed,
+      life:1.0, size:2+Math.random()*4, color
+    });
+    if (G.particles.length > 200) G.particles.shift();
+  }
+}
+
+// ══════════════════════════════════════════════
+// BFS AI
+// ══════════════════════════════════════════════
+function aiBFS() {
+  if (!G.aiSnake || !G.aiSnake.length) return;
+  const visited = new Uint8Array(G.cols * G.rows);
+  const queue = [];
+  const dirs = [{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
+  const head = G.aiSnake[0];
+
+  const idx = (x,y) => y*G.cols+x;
+  const blocked = (x,y) => {
+    if (x<0||x>=G.cols||y<0||y>=G.rows) return true;
+    for (const s of G.aiSnake) if (s.x===x&&s.y===y) return true;
+    for (const s of G.snake)   if (s.x===x&&s.y===y) return true;
+    for (const o of G.obstacles) if (o.x===x&&o.y===y) return true;
+    return false;
+  };
+
+  for (const d of dirs) {
+    const nx=head.x+d.x, ny=head.y+d.y;
+    if (!blocked(nx,ny) && !visited[idx(nx,ny)]) {
+      visited[idx(nx,ny)]=1;
+      queue.push({x:nx,y:ny,first:d});
+    }
+  }
+
+  let best = null, bestDist = 9999;
+  while (queue.length) {
+    const cur = queue.shift();
+    const dist = Math.abs(cur.x-G.food.x)+Math.abs(cur.y-G.food.y);
+    if (dist < bestDist) { bestDist=dist; best=cur.first; }
+    if (cur.x===G.food.x && cur.y===G.food.y) { best=cur.first; break; }
+    for (const d of dirs) {
+      const nx=cur.x+d.x, ny=cur.y+d.y;
+      if (!blocked(nx,ny) && !visited[idx(nx,ny)]) {
+        visited[idx(nx,ny)]=1;
+        queue.push({x:nx,y:ny,first:cur.first});
+      }
+    }
+  }
+  if (best) G.aiNextDir = best;
+}
+
+// ══════════════════════════════════════════════
+// GAME UPDATE
+// ══════════════════════════════════════════════
+function isOpposite(a,b) { return a.x===-b.x && a.y===-b.y; }
+
+function gameUpdate() {
+  const now = Date.now();
+
+  // Particles
+  G.particles = G.particles.filter(p => {
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.08; p.life-=0.025; return p.life>0;
+  });
+
+  // Board PU expiry
+  if (G.boardPU && now-G.boardPU.born > PU_LIFETIME) G.boardPU=null;
+
+  // Active FX expiry
+  if (G.activeFX && now > G.activeFX.end) {
+    G.activeFX=null;
+    document.getElementById('sb-pu-wrap').style.display='none';
+    updateSpeed();
+  }
+
+  // Time Attack
+  if (G.mode==='time') {
+    if (now-G.lastSec >= 1000) {
+      G.timeLeft--; G.lastSec=now;
+      document.getElementById('sb-time').textContent = G.timeLeft+'s';
+    }
+    if (G.timeLeft<=0) { endGame('TIME UP!'); return; }
+  }
+
+  // PU bar
+  if (G.activeFX) {
+    const rem = G.activeFX.end - now;
+    const frac = Math.max(0, rem/PU_EFFECT);
+    document.getElementById('sb-pu-bar').style.width = (frac*100)+'%';
+  }
+
+  // Move tick
+  if (now - G.lastMove < G.moveInterval) return;
+  G.lastMove = now;
+
+  // Combo decay
+  G.comboTimer++;
+  if (G.comboTimer>10) { G.combo=0; G.comboTimer=0; document.getElementById('sb-combo-wrap').style.display='none'; }
+
+  // AI think
+  if (G.mode==='ai' && G.aiSnake) aiBFS();
+
+  // Player move
+  if (!isOpposite(G.nextDir, G.dir)) G.dir = G.nextDir;
+  const head = G.snake[0];
+  let nx = head.x + G.dir.x;
+  let ny = head.y + G.dir.y;
+
+  // Portal warp
+  if (G.portalsOn) {
+    for (let i=0;i<G.portals.length;i++) {
+      if (nx===G.portals[i].x && ny===G.portals[i].y) {
+        const other = G.portals[1-i];
+        nx=other.x; ny=other.y; break;
+      }
+    }
+  }
+
+  // Wall collision
+  if (nx<0||nx>=G.cols||ny<0||ny>=G.rows) { endGame('Hit the wall!'); return; }
+
+  // Self collision
+  for (let i=1;i<G.snake.length;i++) if (G.snake[i].x===nx&&G.snake[i].y===ny) { endGame('Hit yourself!'); return; }
+
+  // Obstacle collision
+  for (const o of G.obstacles) if (o.x===nx&&o.y===ny) { endGame('Hit an obstacle!'); return; }
+
+  // Food?
+  const ate = (nx===G.food.x && ny===G.food.y);
+  if (ate) {
+    G.combo++; G.comboTimer=0;
+    let pts = 10 + (G.combo-1)*5;
+    if (G.activeFX && G.activeFX.type==='double') pts*=2;
+    G.score+=pts; G.foodEaten++;
+    document.getElementById('sb-score').textContent = G.score;
+    if (G.combo>1) {
+      document.getElementById('sb-combo-wrap').style.display='';
+      document.getElementById('sb-combo').textContent = 'x'+G.combo+'!';
+    }
+    const cell=CELL();
+    emitParticles((nx+0.5)*cell, (ny+0.5)*cell, '#ff4444');
+    spawnFood(); spawnPowerUp(); updateSpeed();
+    if (G.mode==='survival') { G.survivalCount++; if(G.survivalCount%5===0) spawnObstacle(); }
+  }
+
+  // Move snake
+  G.snake.unshift({x:nx,y:ny});
+  if (!ate) G.snake.pop();
+  document.getElementById('sb-len').textContent = G.snake.length;
+
+  // PU pickup
+  if (G.boardPU && G.snake[0].x===G.boardPU.x && G.snake[0].y===G.boardPU.y) {
+    applyPowerUp(G.boardPU.type);
+    G.boardPU=null;
+  }
+
+  // AI move
+  if (G.mode==='ai' && G.aiSnake) {
+    if (!isOpposite(G.aiNextDir, G.aiDir)) G.aiDir=G.aiNextDir;
+    const ah=G.aiSnake[0];
+    let ax=ah.x+G.aiDir.x, ay=ah.y+G.aiDir.y;
+    let aiOk = ax>=0&&ax<G.cols&&ay>=0&&ay<G.rows;
+    if (aiOk) for (const s of G.aiSnake) if(s.x===ax&&s.y===ay&&G.aiSnake.indexOf(s)>0){aiOk=false;break;}
+    if (aiOk) for (const s of G.snake) if(s.x===ax&&s.y===ay){aiOk=false;break;}
+    if (aiOk) {
+      const aiAte = ax===G.food.x&&ay===G.food.y;
+      G.aiSnake.unshift({x:ax,y:ay});
+      if (!aiAte) G.aiSnake.pop();
+      if (aiAte) { spawnFood(); updateSpeed(); }
+    }
+  }
+}
+
+function updateSpeed() {
+  if (G.activeFX) {
+    if (G.activeFX.type==='speed') { G.moveInterval=SPEED_BOOST; return; }
+    if (G.activeFX.type==='slow')  { G.moveInterval=SPEED_SLOW; return; }
+  }
+  let interval = SPEED_NORMAL - Math.floor(G.score/50)*8;
+  if (G.mode==='survival') interval -= G.obstacles.length*2;
+  G.moveInterval = Math.max(SPEED_MIN, interval);
+}
+
+function applyPowerUp(type) {
+  const cell=CELL();
+  emitParticles((G.snake[0].x+0.5)*cell,(G.snake[0].y+0.5)*cell,'#c850ff',20);
+  G.activeFX = { type, end: Date.now()+PU_EFFECT };
+  const names = {speed:'SPEED BOOST',slow:'SLOW MOTION',double:'DOUBLE SCORE',shrink:'SHRINK'};
+  document.getElementById('sb-pu-wrap').style.display='';
+  document.getElementById('sb-pu-name').textContent=names[type];
+  if (type==='shrink') {
+    G.snake.splice(-Math.min(4,G.snake.length-2));
+    G.activeFX=null;
+    document.getElementById('sb-pu-wrap').style.display='none';
+  }
+  updateSpeed();
+}
+
+// ══════════════════════════════════════════════
+// RENDERING
+// ══════════════════════════════════════════════
+function draw() {
+  const cell=CELL(), cols=G.cols, rows=G.rows;
+  const t = Date.now();
+
+  // Clear
+  ctx.fillStyle='#0f0f1a'; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // Grid
+  ctx.strokeStyle='#1a1a2e'; ctx.lineWidth=0.5;
+  for (let x=0;x<=cols;x++){ctx.beginPath();ctx.moveTo(x*cell,0);ctx.lineTo(x*cell,rows*cell);ctx.stroke();}
+  for (let y=0;y<=rows;y++){ctx.beginPath();ctx.moveTo(0,y*cell);ctx.lineTo(cols*cell,y*cell);ctx.stroke();}
+
+  // Portals
+  if (G.portalsOn) {
+    G.portals.forEach((p,i) => {
+      const pulse = Math.sin(t*0.005)*0.3+0.7;
+      ctx.fillStyle = i===0 ? `rgba(200,80,255,${pulse*0.8})` : `rgba(0,229,255,${pulse*0.8})`;
+      ctx.beginPath();
+      ctx.arc(p.x*cell+cell/2, p.y*cell+cell/2, cell/2-2, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle='#fff';
+      ctx.font=`bold ${cell*0.5}px monospace`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(i===0?'A':'B', p.x*cell+cell/2, p.y*cell+cell/2);
+    });
+  }
+
+  // Obstacles
+  ctx.fillStyle='#7878a0';
+  for (const o of G.obstacles) {
+    ctx.fillRect(o.x*cell+1,o.y*cell+1,cell-2,cell-2);
+    ctx.strokeStyle='#404060'; ctx.lineWidth=1;
+    ctx.beginPath();
+    ctx.moveTo(o.x*cell+3,o.y*cell+3);ctx.lineTo(o.x*cell+cell-3,o.y*cell+cell-3);
+    ctx.moveTo(o.x*cell+cell-3,o.y*cell+3);ctx.lineTo(o.x*cell+3,o.y*cell+cell-3);
+    ctx.stroke();
+  }
+
+  // Food (pulsing)
+  const fp = Math.sin(t*0.006)*0.2+0.8;
+  ctx.shadowColor='#ff4444'; ctx.shadowBlur=12*fp;
+  ctx.fillStyle='#ff4444';
+  const fm=3; const fs=cell-fm*2;
+  ctx.fillRect(G.food.x*cell+fm, G.food.y*cell+fm, fs, fs);
+  ctx.shadowBlur=0;
+  // Bright centre
+  ctx.fillStyle='rgba(255,200,200,0.8)';
+  ctx.fillRect(G.food.x*cell+fm+fs*0.3, G.food.y*cell+fm+fs*0.3, fs*0.4, fs*0.4);
+
+  // Board power-up
+  if (G.boardPU) {
+    const colors={speed:'#ffd700',slow:'#00e5ff',double:'#c850ff',shrink:'#ff8c00'};
+    const labels={speed:'S',slow:'W',double:'2x',shrink:'Z'};
+    const pp = Math.sin(t*0.008)*0.3+0.7;
+    const col=colors[G.boardPU.type];
+    ctx.shadowColor=col; ctx.shadowBlur=14*pp;
+    ctx.fillStyle=col;
+    const m=3;
+    ctx.beginPath();
+    const cx2=G.boardPU.x*cell+cell/2, cy2=G.boardPU.y*cell+cell/2, r=cell/2-m;
+    ctx.moveTo(cx2,cy2-r); ctx.lineTo(cx2+r,cy2); ctx.lineTo(cx2,cy2+r); ctx.lineTo(cx2-r,cy2);
+    ctx.closePath(); ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.fillStyle='#000'; ctx.font=`bold ${cell*0.45}px monospace`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(labels[G.boardPU.type], cx2, cy2+1);
+  }
+
+  // AI snake
+  if (G.mode==='ai' && G.aiSnake) {
+    G.aiSnake.forEach((s,i) => {
+      const alpha = 1-i/G.aiSnake.length*0.5;
+      ctx.fillStyle = i===0 ? `rgba(255,68,68,${alpha})` : `rgba(180,40,40,${alpha})`;
+      ctx.fillRect(s.x*cell+(i===0?1:2), s.y*cell+(i===0?1:2), cell-(i===0?2:4), cell-(i===0?2:4));
+    });
+  }
+
+  // Player snake
+  G.snake.forEach((s,i) => {
+    const fade = 1 - i/G.snake.length*0.55;
+    const invOn = G.activeFX && G.activeFX.type==='speed';
+    const baseG = invOn ? Math.floor(fade*200+55) : Math.floor(fade*180+20);
+    ctx.fillStyle = i===0
+      ? (invOn ? `rgba(0,255,255,1)` : `rgba(57,255,20,1)`)
+      : `rgba(30,${baseG},15,1)`;
+    const m = i===0?1:2;
+    ctx.fillRect(s.x*cell+m, s.y*cell+m, cell-m*2, cell-m*2);
+
+    // Head glow
+    if (i===0) {
+      ctx.shadowColor = invOn?'#00e5ff':'#39ff14';
+      ctx.shadowBlur=10;
+      ctx.fillRect(s.x*cell+m, s.y*cell+m, cell-m*2, cell-m*2);
+      ctx.shadowBlur=0;
+      // Eyes
+      ctx.fillStyle='#0f0f1a';
+      const ex=s.x*cell, ey=s.y*cell;
+      ctx.fillRect(ex+cell-6,ey+4,3,3);
+      ctx.fillRect(ex+cell-6,ey+cell-7,3,3);
+    }
+  });
+
+  // Particles
+  G.particles.forEach(p => {
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle   = p.color;
+    ctx.fillRect(p.x-p.size/2, p.y-p.size/2, p.size, p.size);
+  });
+  ctx.globalAlpha=1;
+
+  // Paused dim
+  if (G.paused) {
+    ctx.fillStyle='rgba(0,0,0,0.5)';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
+}
+
+// ══════════════════════════════════════════════
+// GAME LOOP
+// ══════════════════════════════════════════════
+function gameLoop() {
+  if (!G.running) return;
+  if (!G.paused && !G.over) gameUpdate();
+  if (!G.over) draw();
+  G.animFrame = requestAnimationFrame(gameLoop);
+}
+
+// ══════════════════════════════════════════════
+// GAME END
+// ══════════════════════════════════════════════
+function endGame(reason) {
+  G.over=true; G.running=false;
+  cancelAnimationFrame(G.animFrame);
+
+  const elapsed = ((Date.now()-G.startTime)/1000).toFixed(1);
+  const best    = getBest();
+  const isNew   = G.score>0 && G.score>=best;
+  if (isNew) saveBest(G.score);
+  saveScore(G.playerName, G.score, G.mode);
+
+  document.getElementById('go-title').textContent = reason==='TIME UP!' ? 'TIME UP!' : 'GAME OVER';
+  document.getElementById('go-score').textContent = G.score;
+  document.getElementById('go-len').textContent   = G.snake.length;
+  document.getElementById('go-time').textContent  = elapsed+'s';
+  document.getElementById('go-mode').textContent  = MODE_LABELS[G.mode]||G.mode;
+  document.getElementById('go-best').textContent  = Math.max(G.score,best);
+  document.getElementById('go-newbest').style.display = isNew?'':'none';
+
+  setTimeout(()=>showScreen('gameover-screen'),600);
+}
+
+// ══════════════════════════════════════════════
+// PAUSE
+// ══════════════════════════════════════════════
+function togglePause() {
+  if (G.over||!G.running) return;
+  G.paused=!G.paused;
+  document.getElementById('pause-overlay').classList.toggle('show', G.paused);
+}
+
+// ══════════════════════════════════════════════
+// INPUT — KEYBOARD
+// ══════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  const s = document.querySelector('.screen.active').id;
+  if (s==='game-screen') {
+    switch(e.key) {
+      case 'ArrowUp':    case 'w': case 'W': e.preventDefault(); setDir(0,-1); break;
+      case 'ArrowDown':  case 's': case 'S': e.preventDefault(); setDir(0,1);  break;
+      case 'ArrowLeft':  case 'a': case 'A': e.preventDefault(); setDir(-1,0); break;
+      case 'ArrowRight': case 'd': case 'D': e.preventDefault(); setDir(1,0);  break;
+      case 'p': case 'P': case ' ':          e.preventDefault(); togglePause(); break;
+      case 'r': case 'R':                    startGame();         break;
+      case 'Escape':
+        G.running=false; cancelAnimationFrame(G.animFrame);
+        showScreen('menu-screen'); break;
+    }
+  } else if (s==='gameover-screen') {
+    if (e.key==='r'||e.key==='R') startGame();
+    if (e.key==='Escape') showScreen('menu-screen');
+  } else if (s==='name-screen') {
+    if (e.key==='Enter') startGame();
+  }
+});
+
+function setDir(x,y) {
+  if (!isOpposite({x,y},G.dir)) G.nextDir={x,y};
+}
+
+// ══════════════════════════════════════════════
+// INPUT — TOUCH SWIPE
+// ══════════════════════════════════════════════
+let touchStartX=0, touchStartY=0;
+document.addEventListener('touchstart', e => {
+  touchStartX=e.touches[0].clientX;
+  touchStartY=e.touches[0].clientY;
+},{passive:true});
+document.addEventListener('touchend', e => {
+  if (document.querySelector('.screen.active').id!=='game-screen') return;
+  const dx=e.changedTouches[0].clientX-touchStartX;
+  const dy=e.changedTouches[0].clientY-touchStartY;
+  if (Math.abs(dx)<20&&Math.abs(dy)<20) return;
+  if (Math.abs(dx)>Math.abs(dy)) setDir(dx>0?1:-1, 0);
+  else                            setDir(0, dy>0?1:-1);
+},{passive:true});
+
+function touchDir(x,y) { setDir(x,y); }
+
+// ══════════════════════════════════════════════
+// LEADERBOARD (localStorage)
+// ══════════════════════════════════════════════
+function loadLB() {
+  try { return JSON.parse(localStorage.getItem('snkLB')||'[]'); } catch(e){return [];}
+}
+function saveScore(name, score, mode) {
+  if (score<=0) return;
+  const lb = loadLB();
+  lb.push({name,score,mode:MODE_LABELS[mode]||mode,date:new Date().toLocaleDateString()});
+  lb.sort((a,b)=>b.score-a.score);
+  lb.splice(10);
+  localStorage.setItem('snkLB',JSON.stringify(lb));
+}
+function getBest() {
+  const lb=loadLB(); return lb.length?lb[0].score:0;
+}
+function saveBest(s) {}
+
+function renderLB() {
+  const lb=loadLB();
+  const el=document.getElementById('lb-content');
+  if (!lb.length) {
+    el.innerHTML='<div class="empty-lb">No scores yet — play a game!</div>';
+    return;
+  }
+  const medals=['rank-1','rank-2','rank-3'];
+  let html='<table class="lb-table"><thead><tr><th>#</th><th>NAME</th><th>SCORE</th><th>MODE</th></tr></thead><tbody>';
+  lb.forEach((e,i)=>{
+    const rc=medals[i]||'';
+    html+=`<tr><td class="${rc}">${i+1}</td><td>${e.name||'?'}</td><td style="color:var(--accent);font-weight:700">${e.score}</td><td style="color:var(--textdim)">${e.mode}</td></tr>`;
+  });
+  html+='</tbody></table>';
+  el.innerHTML=html;
+}
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+setupCanvas();
+document.getElementById('sb-best').textContent = getBest();
+</script>
+</body>
+</html>
