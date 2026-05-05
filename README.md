@@ -2,7 +2,7 @@
 
 > A feature-rich Snake game built in **C** as a college project for the course **Structured Programming in C**.
 > **BMS College of Engineering** | Team: **Hruthya CV & Harshitha RG**
-
+ Live link : https://hruthyacv.github.io/snake-xenzia/
 ---
 
 ## 🎮 About the Game
